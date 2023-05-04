@@ -1,0 +1,246 @@
+import json
+import random
+
+
+try:
+    with open('adam.json', 'r', encoding='utf8') as f:
+        people = json.load(f)
+except Exception:
+    with open('adam.json', 'w') as f:
+        json.dump({}, f)
+    with open('adam.json', 'r') as f:
+        people = json.load(f)
+
+
+class App:
+    def __init__(self, name):
+        self.flag = True
+        self.name = name
+
+
+class Password:
+    def __init__(self, a, prev):
+        self.previous = prev
+        self.criteria = a
+        self.range = a[0]
+        self.letters = [i for i in '1234567890'] if not a[1]\
+            else [i for i in '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']\
+            if a[2] else [i for i in '1234567890abcdefghijklmnopqrstuvwxyz']
+        self.first = [i for i in '1234567890'] if a[4] == 2\
+            else [i for i in 'abcdefghijklmnopqrstuvwxyz']\
+            if a[4] == 1 else [i for i in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+        self.last = [i for i in '1234567890'] if a[3] == 2\
+            else [i for i in 'abcdefghijklmnopqrstuvwxyz'] if a[3] == 1 else [i for i in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+        self.tabu_s = []
+        q = [i for i in range(self.range)]
+        for i in range(a[6]):
+            j = random.choice(q)
+            self.tabu_s.append(j)
+            q.remove(j)
+        self.password = ''
+
+    def create(self):
+        for i in range(self.range):
+            if i in self.tabu_s:
+                letter_tabu = [q[i] for q in self.previous]
+                if i == 0:
+                    letter = random.choice(list(filter(lambda x: x not in letter_tabu, self.first)))
+                elif i == self.range - 1:
+                    letter = random.choice(list(filter(lambda x: x not in letter_tabu, self.last)))
+                else:
+                    letter = random.choice(list(filter(lambda x: x not in letter_tabu, self.letters)))
+                self.password += letter
+            else:
+                if i == 0:
+                    letter = random.choice(self.first)
+                elif i == self.range - 1:
+                    letter = random.choice(self.last)
+                else:
+                    letter = random.choice(self.letters)
+                self.password += letter
+        return self.password
+
+    def __str__(self):
+        return self.password
+
+
+class User:
+    data = {}
+
+    def __init__(self, name, prev):
+        self.name = name
+        self.seen = False
+        User.data[name] = self
+        self.prev = prev
+
+    def hello_news(self, file):
+        print(f'nice to meet you, {self.name}! Lets get started.')
+        with open(file, 'w') as f:
+            json.dump({}, f)
+        self.creation(file)
+
+    def hello_know(self, file):
+        self.seen = True
+        print(f'''welcome back, {self.name}! Lets get started.
+how can i help you? (type in a number)
+0. know one of previous passwords
+1. create a new one
+2. nevermind''')
+        q = input()
+        if q == str(1):
+            self.creation(file)
+        elif q == str(0):
+            with open(file, 'r') as f:
+                j = json.load(f)
+                print('alright, what app do you want to get a password for?')
+                app = input()
+                while True:
+                    if app in j.keys():
+                        print(f'your password is "{j[app][-1][-1]}"')
+                        break
+                    else:
+                        print('it seems you dont have one, wanna try another app?')
+                        app = input()
+                self.bye()
+        elif q == str(2):
+            self.bye()
+
+    def bye(self):
+        print(f'''thanks for using my generator, {self.name}, see you soon!
+                                                                March.''')
+
+    def creation(self, file):
+        print('what do you want to create a password for?')
+        app = input()
+        with open(file, 'r') as f:
+            base = json.load(f)
+            if app in base.keys():
+                print('''alright, press "Enter" to continue with keeping same criteria (press any button if you wanna change criteria)''')
+                if input() != '':
+                    self.change_criteria(app, file)
+                else:
+                    print('ok, getting started!')
+                    crit = base[app][0]
+                    if base[app][0][5] < len(base[app][1]):
+                        prev = base[app][1][-int(base[app][1][base[app][0][5]]):]
+                    else:
+                        prev = base[app][1]
+                    a = 0
+                    while a != '':
+                        j = Password(crit, prev).create()
+                        print(j)
+                        print(f'''your password is {j}
+press any button to get another password or press "Enter" to save this one.''')
+                        a = input()
+                    self.saving(app, j, file)
+            else:
+                print(f'''if seems that {app} is a new app, so you need to set up the criteria for {app}''')
+                self.change_criteria(app, file)
+
+
+    def change_criteria(self, app, file):
+        crit = [8, False, False, 2, 2, 1, 1]
+        a = 0
+        while True:
+            print(f'''what are the criteria for your password? (type in a number, when you finish setting up, press "Enter")
+            0. amount of symbols (now: {crit[0]})
+            1. include letters (now: {crit[1]})
+            2. use different registers of letters (now: {crit[2]})
+            3. criteria for last symbol (now: {'upper letter' if crit[3] == 0 else 'lower letter' if crit[3] == 1 else 'number'})
+            4. criteria for first symbol (now: {'upper letter' if crit[3] == 0 else 'lower letter' if crit[3] == 1 else 'number'})
+            5. the password doesnt repeat the previous (number) passwords (now: {crit[5]})
+            6. the password differs from the previous one by (number) characters (now: {crit[6]})''')
+            a = input()
+            if a == '0':
+                print('type in amount of symbols')
+                crit[0] = int(input())
+            elif a == '1':
+                crit[1] = True
+            elif a == '2':
+                crit[2] = True
+            elif a == '3':
+                print('''your last symbol must be a ...
+                                0. upper letter
+                                1. lower letter
+                                2. number''')
+                j = input()
+                if j in '012':
+                    crit[3] = int(j)
+                else:
+                    print('sorry, i dont know what that means...')
+                    continue
+            elif a == '4':
+                print('''your first symbol must be a ...
+                                                    0. upper letter
+                                                    1. lower letter
+                                                    2. number''')
+                j = input()
+                if j in '012':
+                    crit[4] = int(j)
+                else:
+                    print('sorry, i dont know what that means...')
+                    continue
+            elif a == '5':
+                print('type in a number')
+                crit[5] = int(input())
+            elif a == '6':
+                print('type in a number')
+                crit[6] = int(input())
+            elif a == '':
+                break
+            else:
+                print('''sorry, i dont have this criteria...
+                                could you type in something of these?''')
+                continue
+            print('got it, you can continue setting up!')
+            print()
+            continue
+        with open(file, 'r') as f:
+            base = json.load(f)
+        if app in base.keys():
+            base[app][0] = crit
+        else:
+            base[app] = [crit, []]
+        with open(file, 'w') as f:
+            json.dump(base, f)
+        print('ok, getting started!')
+        a = 0
+        while a != '':
+            o = Password(crit, base[app][:-base[app][0][1]])
+            print(f'''your password is {o.create()}
+do you like it, or wanna get another one?''')
+            a = input()
+        self.saving(app, o.password, file)
+
+    def saving(self, app, password, file):
+        with open(file, 'r') as f:
+            base = json.load(f)
+        if app in base.keys():
+            base[app][1].append(password)
+        else:
+            base[app][1] = [password]
+        with open(file, 'w') as f:
+            json.dump(base, f)
+        print('saved!')
+        self.bye()
+
+    def __str__(self):
+        return f'hello, {self.name}'
+
+
+def getting_started():
+    print(f'hello, whats your name?')
+    k = input()
+    if k in people.keys():
+        with open('adam.json', 'r') as f:
+            r = json.load(f)
+        User(k, r[k]).hello_know(r[k])
+    else:
+        people[k] = f'{k}.json'
+        with open('adam.json', 'w') as f:
+            json.dump(people, f)
+        j = User(k, [])
+        j.hello_news(people[k])
+
+
+getting_started()
